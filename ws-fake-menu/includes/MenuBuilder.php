@@ -6,8 +6,10 @@ if (!defined('ABSPATH')) {
 
 class WSFM_Menu_Builder {
 	private $terms_provider;
-	private const CHILDREN_PER_LEVEL2 = 3;
-	private const CHILDREN_PER_LEVEL3 = 2;
+	private const CHILDREN_PER_LEVEL2_MIN = 2;
+	private const CHILDREN_PER_LEVEL2_MAX = 6;
+	private const CHILDREN_PER_LEVEL3_MIN = 1;
+	private const CHILDREN_PER_LEVEL3_MAX = 5;
 
 	public function __construct($terms_provider = null) {
 		$this->terms_provider = $terms_provider ?: new WSFM_Terms_Provider();
@@ -44,22 +46,24 @@ class WSFM_Menu_Builder {
 			'level3' => 0,
 		];
 
-		for ($i = 1; $i <= $num_root_links; $i++) {
-			$title1 = $this->terms_provider->generate_label(1, $i);
+		$root_titles = $this->terms_provider->get_random_labels(1, $num_root_links);
+		foreach ($root_titles as $i => $title1) {
 			$root_id = $this->add_menu_item($menu_id, $title1, 0);
 			if (!is_wp_error($root_id)) {
 				$counts['level1']++;
 
 				if ($levels >= 2) {
-					for ($j = 1; $j <= self::CHILDREN_PER_LEVEL2; $j++) {
-						$title2 = $this->terms_provider->generate_label(2, $j, $title1);
+					$children_level2 = $this->random_between(self::CHILDREN_PER_LEVEL2_MIN, self::CHILDREN_PER_LEVEL2_MAX);
+					$level2_titles = $this->terms_provider->get_random_labels(2, $children_level2);
+					foreach ($level2_titles as $j => $title2) {
 						$child_id = $this->add_menu_item($menu_id, $title2, (int) $root_id);
 						if (!is_wp_error($child_id)) {
 							$counts['level2']++;
 
 							if ($levels >= 3) {
-								for ($k = 1; $k <= self::CHILDREN_PER_LEVEL3; $k++) {
-									$title3 = $this->terms_provider->generate_label(3, $k, $title2);
+								$children_level3 = $this->random_between(self::CHILDREN_PER_LEVEL3_MIN, self::CHILDREN_PER_LEVEL3_MAX);
+								$level3_titles = $this->terms_provider->get_random_labels(3, $children_level3);
+								foreach ($level3_titles as $k => $title3) {
 									$grand_id = $this->add_menu_item($menu_id, $title3, (int) $child_id);
 									if (!is_wp_error($grand_id)) {
 										$counts['level3']++;
@@ -67,7 +71,6 @@ class WSFM_Menu_Builder {
 								}
 							}
 						}
-					}
 				}
 			}
 		}
@@ -89,5 +92,14 @@ class WSFM_Menu_Builder {
 			$args['menu-item-parent-id'] = (int) $parent_id;
 		}
 		return wp_update_nav_menu_item((int) $menu_id, 0, $args);
+	}
+
+	private function random_between($min, $max) {
+		$min = (int) $min;
+		$max = (int) $max;
+		if ($min >= $max) {
+			return $min;
+		}
+		return function_exists('wp_rand') ? wp_rand($min, $max) : rand($min, $max);
 	}
 }
